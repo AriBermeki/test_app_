@@ -1013,3 +1013,467 @@ fn main() {
 
 
 ```
+# This will be the result on the Python side
+
+
+```python
+
+
+class PyWebViewBuilder:
+    def __init__(self):
+        pass
+
+
+    def with_accept_first_mouse(self):
+        pass
+
+    def with_asynchronous_custom_protocol(self):
+        pass
+
+    def with_autoplay(self):
+        pass
+
+    def with_back_forward_navigation_gestures(self):
+        pass
+
+    def with_background_color(self):
+        pass
+
+    def with_bounds(self):
+        pass
+
+    def with_clipboard(self):
+        pass
+
+    def with_custom_protocol(self):
+        pass
+
+    def with_devtools(self):
+        pass
+
+    def with_document_title_changed_handler(self):
+        pass
+
+    def with_download_completed_handler(self):
+        pass
+
+    def with_download_started_handler(self):
+        pass
+
+    def with_drag_drop_handler(self):
+        pass
+
+    def with_focused(self):
+        pass
+
+    def with_headers(self):
+        pass
+
+    def with_hotkeys_zoom(self):
+        pass
+
+    def with_html(self):
+        pass
+
+    def with_incognito(self):
+        pass
+
+    def with_initialization_script(self):
+        pass
+
+    def with_ipc_handler(self):
+        pass
+
+    def with_navigation_handler(self):
+        pass
+
+    def with_new_window_req_handler(self):
+        pass
+
+    def with_on_page_load_handler(self):
+        pass
+
+    def with_proxy_config(self):
+        pass
+
+    def with_transparent(self):
+        pass
+
+    def with_url(self):
+        pass
+
+    def with_url_and_headers(self):
+        pass
+
+    def with_user_agent(self):
+        pass
+
+    def with_visible(self):
+        pass
+
+    def with_web_context(self):
+        pass
+
+
+
+
+
+class PyWindowBuilder:
+    def __init__(self):
+        pass
+
+    def with_always_on_bottom(self):
+        pass
+
+    def with_always_on_top(self):
+        pass
+
+    def with_closable(self):
+        pass
+
+    def with_content_protection(self):
+        pass
+
+    def with_decorations(self):
+        pass
+
+    def with_focused(self):
+        pass
+
+    def with_fullscreen(self):
+        pass
+
+    def with_inner_size(self, width, height):
+        pass
+
+    def with_inner_size_constraints(self, min_width, min_height, max_width, max_height):
+        pass
+
+    def with_max_inner_size(self, max_width, max_height):
+        pass
+
+    def with_maximizable(self):
+        pass
+
+    def with_maximized(self):
+        pass
+
+    def with_min_inner_size(self, min_width, min_height):
+        pass
+
+    def with_minimizable(self):
+        pass
+
+    def with_position(self, x, y):
+        pass
+
+    def with_resizable(self):
+        pass
+
+    def with_theme(self, theme):
+        pass
+
+    def with_title(self, title):
+        pass
+
+    def with_transparent(self):
+        pass
+
+    def with_visible(self):
+        pass
+
+    def with_visible_on_all_workspaces(self):
+        pass
+
+    def with_window_icon(self, icon_path):
+        pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class PyFrame:
+    def __init__(self):
+        pass
+
+    # -------------------------- all Window Methods ----------------------------------
+    def available_monitors(self):
+        pass
+
+    def current_monitor(self):
+        pass
+
+    def cursor_position(self):
+        pass
+
+    def fullscreen(self):
+        pass
+
+    def id(self):
+        pass
+
+    def inner_position(self):
+        pass
+
+    def inner_size(self):
+        pass
+
+    def is_closable(self):
+        pass
+
+    def is_decorated(self):
+        pass
+
+    def is_focused(self):
+        pass
+
+    def is_maximizable(self):
+        pass
+
+    def is_maximized(self):
+        pass
+
+    def is_minimizable(self):
+        pass
+
+    def is_minimized(self):
+        pass
+
+    def is_resizable(self):
+        pass
+
+    def is_visible(self):
+        pass
+
+    def monitor_from_point(self, x, y):
+        pass
+
+    def outer_position(self):
+        pass
+
+    def outer_size(self):
+        pass
+
+    def primary_monitor(self):
+        pass
+
+    def scale_factor(self):
+        pass
+
+
+    def set_always_on_bottom(self, value):
+        pass
+
+    def set_always_on_top(self, value):
+        pass
+
+    def set_closable(self, value):
+        pass
+
+    def set_content_protection(self, value):
+        pass
+
+    def set_cursor_grab(self, value):
+        pass
+
+    def set_cursor_icon(self, icon):
+        pass
+
+    def set_cursor_position(self, x, y):
+        pass
+
+    def set_cursor_visible(self, visible):
+        pass
+
+    def set_decorations(self, value):
+        pass
+
+    def set_focus(self):
+        pass
+
+    def set_fullscreen(self, value):
+        pass
+
+    def set_ignore_cursor_events(self, ignore):
+        pass
+
+    def set_ime_position(self, x, y):
+        pass
+
+    def set_inner_size(self, width, height):
+        pass
+
+    def set_inner_size_constraints(self, min_width, min_height, max_width, max_height):
+        pass
+
+    def set_max_inner_size(self, max_width, max_height):
+        pass
+
+    def set_maximizable(self, value):
+        pass
+
+    def set_maximized(self, value):
+        pass
+
+    def set_min_inner_size(self, min_width, min_height):
+        pass
+
+    def set_minimizable(self, value):
+        pass
+
+    def set_minimized(self, value):
+        pass
+
+    def set_outer_position(self, x, y):
+        pass
+
+    def set_progress_bar(self, progress):
+        pass
+
+    def set_resizable(self, value):
+        pass
+
+    def set_title(self, title):
+        pass
+
+    def set_visible(self, visible):
+        pass
+
+    def set_visible_on_all_workspaces(self, visible):
+        pass
+
+    def set_window_icon(self, icon_path):
+        pass
+
+    def drag_resize_window(self, x, y):
+        pass
+
+    def drag_window(self, x, y):
+        pass
+
+    def request_redraw(self):
+        pass
+
+    def request_user_attention(self):
+        pass
+
+    def theme(self):
+        pass
+
+    def title(self):
+        pass
+
+
+
+
+    # -------------------------- all WebView Methods ----------------------------------
+    def bounds(self):
+        pass
+
+    def clear_all_browsing_data(self):
+        pass
+
+    def close_devtools(self):
+        pass
+
+    def evaluate_script(self, script):
+        pass
+
+    def evaluate_script_with_callback(self, script, callback):
+        pass
+
+    def focus(self):
+        pass
+
+    def is_devtools_open(self):
+        pass
+
+    def load_url(self, url):
+        pass
+
+    def load_url_with_headers(self, url, headers):
+        pass
+
+    def new(self):
+        pass
+
+    def new_as_child(self):
+        pass
+
+    def open_devtools(self):
+        pass
+
+    def print(self):
+        pass
+
+    def set_background_color(self, color):
+        pass
+
+    def set_bounds(self, bounds):
+        pass
+
+    def set_visible(self, visible):
+        pass
+
+    def url(self):
+        pass
+
+    def zoom(self, level):
+        pass
+
+    # -------------------------- all Eventloop Methods ----------------------------------
+
+
+    def available_monitors(self):
+        pass
+    def cursor_position(self):
+        pass
+    def monitor_from_point(self):
+        pass
+    def primary_monitor(self):
+        pass
+    def set_device_event_filter(self):
+        pass
+    def set_progress_bar(self):
+        pass
+
+    def run(self):
+        pass
+
+
+
+
+
+# Python Example
+
+
+window = PyWindowBuilder()
+window.with_always_on_bottom()
+
+webview = PyWebViewBuilder()
+webview.with_url()
+
+
+app = PyFrame(window=window, webview=webview)
+app.evaluate_script()
+
+
+
+
+
+if __name__ == "__main__":
+    app.run()
+
+
+```
