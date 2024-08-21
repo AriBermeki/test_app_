@@ -7,15 +7,15 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::Mutex;
-use tokio::io::{self, AsyncWriteExt, AsyncReadExt};
-use tokio::net::{TcpStream, tcp::ReadHalf, tcp::WriteHalf};
+use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+use tokio::sync::Mutex;
 use serde_json;
 
 struct Connection {
-    write: Arc<Mutex<WriteHalf>>,
-    read: Arc<Mutex<ReadHalf>>,
-    callback_store: Arc<Mutex<HashMap<String, Box<dyn Fn(HashMap<String, String>) + Send + Sync>>>>, 
+    write: Arc<Mutex<tokio::io::WriteHalf<TcpStream>>>,
+    read: Arc<Mutex<tokio::io::ReadHalf<TcpStream>>>,
+    callback_store: Arc<Mutex<HashMap<String, Box<dyn Fn(HashMap<String, String>) + Send + Sync>>>>,
 }
 
 impl Connection {
@@ -24,16 +24,17 @@ impl Connection {
         json_data.insert("event".to_string(), event.to_string());
         let json = serde_json::to_string(&json_data)?;
         let bytes = json.as_bytes();
-        let mut write_handle = self.write.lock().unwrap();
+
+        let mut write_handle = self.write.lock().await;
         write_handle.write_all(bytes).await?;
         Ok(())
     }
 
-    async fn on<F>(&self, event: &str, callback: F) -> io::Result<()> 
+    async fn on<F>(&self, event: &str, callback: F) -> io::Result<()>
     where
         F: Fn(HashMap<String, String>) + Send + Sync + 'static,
     {
-        let mut store = self.callback_store.lock().unwrap();
+        let mut store = self.callback_store.lock().await;
         store.insert(event.to_string(), Box::new(callback));
         Ok(())
     }
@@ -48,18 +49,20 @@ impl Connection {
         })
     }
 
-    async fn listen_for_events(&self) {
+    async fn listen_for_events(self: Arc<Self>) {
         let mut buf = [0; 1024];
         loop {
-            let mut read_handle = self.read.lock().unwrap();
+            let mut read_handle = self.read.lock().await;
             let n = read_handle.read(&mut buf).await.expect("Failed to read from socket");
             if n == 0 {
                 break; // Connection closed
             }
             let message = String::from_utf8_lossy(&buf[..n]);
+            
             if let Ok(parsed_message) = serde_json::from_str::<HashMap<String, String>>(&message) {
                 if let Some(event) = parsed_message.get("event") {
-                    if let Some(callback) = self.callback_store.lock().unwrap().get(event) {
+                    let callback_store = self.callback_store.lock().await;
+                    if let Some(callback) = callback_store.get(event) {
                         callback(parsed_message);
                     }
                 }
@@ -70,22 +73,21 @@ impl Connection {
 
 #[tokio::main]
 async fn main() {
-    let connections = Connection::start_tcp("127.0.0.1", 8080).await.unwrap();
-    
+    let connections = Arc::new(Connection::start_tcp("127.0.0.1", 8080).await.unwrap());
+
     connections.on("message", |data| {
         println!("Received message: {:?}", data);
     }).await.unwrap();
 
+    let connections_clone = connections.clone();
     tokio::spawn(async move {
-        connections.listen_for_events().await;
+        connections_clone.listen_for_events().await;
     });
 
     let mut data = HashMap::new();
     data.insert("content".to_string(), "Hello, world!".to_string());
     connections.emit("message", data).await.unwrap();
 }
-
-
 
 
 ```
