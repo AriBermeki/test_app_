@@ -184,3 +184,58 @@ fn main(){
 
 
 ```
+
+
+```rust
+
+/* هذا مثال فقط للتوضيح , فى types هنا اصلا انا مخترعها علشان مش فاكر اسمها بالضبط
+rs */
+struct Connection{
+    read: Arc<TcpStreamReadHandle>,
+    callback_store: HashMap<String, Box<dyn Fn(HashMap<String, String>)>>, // هنخزن فيها ال callbacks
+}
+
+impl Connection {
+    async fn emit(event:&str, data:HashMap<String, String>) -> io::Result<()> {
+
+        /*send event to python {"event":data} */
+        if let Some(callback) = self.callback_store.get(&event) {
+            (callback)(data);
+        }
+    }
+
+    async fn on(&self, event:&str, callback: Fn()) -> io::Result<()> {
+        /*received event from python  {"event_name":data} */
+        self.callback_store.insert(event, Box::new(callback));
+    }
+    
+    async fn start_tcp(&self, host:&str, port:i32) -> io::Result<TcpStreamWriteHandle> {
+        let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
+        let (read, write) = stream.into_split();
+        self.read = Arc::new(read);  
+        self.write = Arc::new(write);
+    }
+
+    fn listen_for_events() {
+        loop {
+          let message = self.read.read();
+          let event = message.event;
+          let data = message.data;
+          self.emit(event, data);
+        }
+    }
+}
+
+fn main(){
+    let mut connections = Connection::new();
+    connections.on("message",|data|{});
+    connections.start_tcp();
+    tokio::spawn(async {
+      connections.listen_for_events(); 
+    });
+    connections.emit("message", data);
+}
+
+
+
+```
