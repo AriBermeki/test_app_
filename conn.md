@@ -138,3 +138,49 @@ async fn main() -> io::Result<()> {
 
 
 ```
+
+
+```rust
+
+struct Connection{
+    buffer_size: usize,
+    sender:Option<mpsc::Sender<HashMap<String, String>>>,
+    receiver:mpsc::Option<Receiver<HashMap<String, String>>>,
+    stream:Option<TcpStream>
+}
+
+
+impl Connection {
+    fn new(buffer_size: usize) -> Self {
+        Self {
+            buffer_size,
+            None,
+            None,
+            None
+        }
+    }
+    
+    async fn emit(event:&str, data:HashMap<String, String>) -> io::Result<()> {
+        
+    }
+
+    async fn on(&self, event:&str, callable) -> io::Result<()> {
+        
+    }
+    
+    async fn start_tcp(&self, host:&str, port:i32) -> io::Result<()> {
+        let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
+    }
+}
+
+
+
+fn main(){
+    let mut connections = Connection::new(32);
+
+    connections.on("message",||{})
+}
+
+
+
+```
