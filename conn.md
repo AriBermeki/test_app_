@@ -160,7 +160,7 @@ impl Connection {
         }
     }
     
-    async fn emit(event:&str, data:HashMap<String, String>) -> io::Result<()> {
+    async fn emit(&self,event:&str, data:HashMap<String, String>) -> io::Result<()> {
         
     }
 
@@ -178,7 +178,7 @@ impl Connection {
 fn main(){
     let mut connections = Connection::new(32);
 
-    connections.on("message",||{})
+    connections.on("message",|e|{})
 }
 
 
