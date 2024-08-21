@@ -1,240 +1,90 @@
+
+
+
 ```rust
 
 
-use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
-use tokio::sync::{broadcast, mpsc, Mutex};
+
 use std::collections::HashMap;
 use std::sync::Arc;
-use serde_json::to_string;
-
-struct FromPythonToRust {
-    sender: broadcast::Sender<String>,
-}
-
-impl FromPythonToRust {
-    fn new(buffer_size: usize) -> Self {
-        let (sender, _receiver) = broadcast::channel(buffer_size);
-        Self { sender }
-    }
-
-    async fn start_receive_from_python_to_rust(&self, mut from_python: impl AsyncReadExt + Unpin) {
-        let mut buffer = vec![0; 1024];
-        loop {
-            let n = match from_python.read(&mut buffer).await {
-                Ok(n) if n == 0 => break, // Connection closed
-                Ok(n) => n,
-                Err(e) => {
-                    eprintln!("Failed to read from TCP stream: {:?}", e);
-                    break;
-                }
-            };
-
-            let message = String::from_utf8_lossy(&buffer[..n]).to_string();
-
-            if let Err(e) = self.sender.send(message) {
-                println!("Error sending message: {:?}", e);
-            }
-        }
-    }
-
-    async fn receive_from_python(&self) {
-        let mut receiver = self.sender.subscribe();
-        while let Ok(message) = receiver.recv().await {
-            message;
-        }
-    }
-}
-
-struct FromRustToPython {
-    tx: mpsc::Sender<HashMap<String, String>>,
-    rx: Mutex<mpsc::Receiver<HashMap<String, String>>>,
-}
-
-impl FromRustToPython {
-    fn new(buffer_size: usize) -> Self {
-        let (tx, rx) = mpsc::channel(buffer_size);
-        Self {
-            tx,
-            rx: Mutex::new(rx),
-        }
-    }
-
-    async fn send_from_rust(&self, data: HashMap<String, String>) {
-        if let Err(e) = self.tx.send(data).await {
-            eprintln!("Failed to send data: {:?}", e);
-        }
-    }
-
-    async fn start_send_from_rust_to_python(&self, mut from_rust: impl AsyncWriteExt + Unpin) -> io::Result<()> {
-        let mut rx = self.rx.lock().await;
-        while let Some(received_map) = rx.recv().await {
-            let serialized_data = to_string(&received_map).expect("Failed to serialize data");
-            from_rust.write_all(serialized_data.as_bytes()).await?;
-        }
-        Ok(())
-    }
-}
+use std::sync::Mutex;
+use tokio::io::{self, AsyncWriteExt, AsyncReadExt};
+use tokio::net::{TcpStream, tcp::ReadHalf, tcp::WriteHalf};
+use serde_json;
 
 struct Connection {
-    rust: Arc<FromRustToPython>,
-    python: Arc<FromPythonToRust>,
+    write: Arc<Mutex<WriteHalf>>,
+    read: Arc<Mutex<ReadHalf>>,
+    callback_store: Arc<Mutex<HashMap<String, Box<dyn Fn(HashMap<String, String>) + Send + Sync>>>>, 
 }
 
 impl Connection {
-    fn new(buffer_size: usize) -> Self {
-        let python = Arc::new(FromPythonToRust::new(buffer_size));
-        let rust = Arc::new(FromRustToPython::new(buffer_size));
-        Self { rust, python }
-    }
-
-
-
-    async fn from_python(&self) {
-        self.python.receive_from_python().await;
-    }
-    async fn to_python(&self, data: HashMap<String, String>) {
-        self.rust.send_from_rust(data).await;
-    }
-
-
-
-    async fn start_tcp(&self, host:&str, port:i32) -> io::Result<()> {
-        let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
-        let (read_half, write_half) = stream.into_split();
-
-        // Cloning Arcs to pass into async tasks
-        let python_to_rust = Arc::clone(&self.python);
-        tokio::spawn(async move {
-            python_to_rust
-                .start_receive_from_python_to_rust(read_half)
-                .await;
-        });
-
-        let rust_to_python = Arc::clone(&self.rust);
-        tokio::spawn(async move {
-            if let Err(e) = rust_to_python.start_send_from_rust_to_python(write_half).await {
-                eprintln!("Failed to send data from Rust to Python: {:?}", e);
-            }
-        });
-
+    async fn emit(&self, event: &str, data: HashMap<String, String>) -> io::Result<()> {
+        let mut json_data = data.clone();
+        json_data.insert("event".to_string(), event.to_string());
+        let json = serde_json::to_string(&json_data)?;
+        let bytes = json.as_bytes();
+        let mut write_handle = self.write.lock().unwrap();
+        write_handle.write_all(bytes).await?;
         Ok(())
+    }
+
+    async fn on<F>(&self, event: &str, callback: F) -> io::Result<()> 
+    where
+        F: Fn(HashMap<String, String>) + Send + Sync + 'static,
+    {
+        let mut store = self.callback_store.lock().unwrap();
+        store.insert(event.to_string(), Box::new(callback));
+        Ok(())
+    }
+
+    async fn start_tcp(host: &str, port: i32) -> io::Result<Self> {
+        let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
+        let (read, write) = tokio::io::split(stream);
+        Ok(Connection {
+            read: Arc::new(Mutex::new(read)),
+            write: Arc::new(Mutex::new(write)),
+            callback_store: Arc::new(Mutex::new(HashMap::new())),
+        })
+    }
+
+    async fn listen_for_events(&self) {
+        let mut buf = [0; 1024];
+        loop {
+            let mut read_handle = self.read.lock().unwrap();
+            let n = read_handle.read(&mut buf).await.expect("Failed to read from socket");
+            if n == 0 {
+                break; // Connection closed
+            }
+            let message = String::from_utf8_lossy(&buf[..n]);
+            if let Ok(parsed_message) = serde_json::from_str::<HashMap<String, String>>(&message) {
+                if let Some(event) = parsed_message.get("event") {
+                    if let Some(callback) = self.callback_store.lock().unwrap().get(event) {
+                        callback(parsed_message);
+                    }
+                }
+            }
+        }
     }
 }
 
 #[tokio::main]
-async fn main() -> io::Result<()> {
-    let connection = Connection::new(100);
-    connection.start_tcp("127.0.0.1", 8080).await?;
-
-    // Keep the main function running
-    tokio::signal::ctrl_c().await?;
-    println!("Received Ctrl-C, shutting down.");
-    Ok(())
-}
-
-
-
-
-
-```
-
-
-```rust
-
-struct Connection{
-    buffer_size: usize,
-    sender:Option<mpsc::Sender<HashMap<String, String>>>,
-    receiver:mpsc::Option<Receiver<HashMap<String, String>>>,
-    stream:Option<TcpStream>
-}
-
-
-impl Connection {
-    fn new(buffer_size: usize) -> Self {
-        Self {
-            buffer_size,
-            None,
-            None,
-            None
-        }
-    }
+async fn main() {
+    let connections = Connection::start_tcp("127.0.0.1", 8080).await.unwrap();
     
-    async fn emit(&self,event:&str, data:HashMap<String, String>) -> io::Result<()> {
-        
-    }
+    connections.on("message", |data| {
+        println!("Received message: {:?}", data);
+    }).await.unwrap();
 
-    async fn on(&self, event:&str, callable) -> io::Result<()> {
-        
-    }
-    
-    async fn start_tcp(&self, host:&str, port:i32) -> io::Result<()> {
-        let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
-    }
-}
-
-
-
-fn main(){
-    let mut connections = Connection::new(32);
-
-    connections.on("message",|e|{})
-}
-
-
-
-```
-
-
-```rust
-
-/* هذا مثال فقط للتوضيح , فى types هنا اصلا انا مخترعها علشان مش فاكر اسمها بالضبط
-rs */
-struct Connection{
-    read: Arc<TcpStreamReadHandle>,
-    callback_store: HashMap<String, Box<dyn Fn(HashMap<String, String>)>>, // هنخزن فيها ال callbacks
-}
-
-impl Connection {
-    async fn emit(event:&str, data:HashMap<String, String>) -> io::Result<()> {
-
-        /*send event to python {"event":data} */
-        if let Some(callback) = self.callback_store.get(&event) {
-            (callback)(data);
-        }
-    }
-
-    async fn on(&self, event:&str, callback: Fn()) -> io::Result<()> {
-        /*received event from python  {"event_name":data} */
-        self.callback_store.insert(event, Box::new(callback));
-    }
-    
-    async fn start_tcp(&self, host:&str, port:i32) -> io::Result<TcpStreamWriteHandle> {
-        let stream = TcpStream::connect(format!("{}:{}", host, port)).await?;
-        let (read, write) = stream.into_split();
-        self.read = Arc::new(read);  
-        self.write = Arc::new(write);
-    }
-
-    fn listen_for_events() {
-        loop {
-          let message = self.read.read();
-          let event = message.event;
-          let data = message.data;
-          self.emit(event, data);
-        }
-    }
-}
-
-fn main(){
-    let mut connections = Connection::new();
-    connections.on("message",|data|{});
-    connections.start_tcp();
-    tokio::spawn(async {
-      connections.listen_for_events(); 
+    tokio::spawn(async move {
+        connections.listen_for_events().await;
     });
-    connections.emit("message", data);
+
+    let mut data = HashMap::new();
+    data.insert("content".to_string(), "Hello, world!".to_string());
+    connections.emit("message", data).await.unwrap();
 }
+
 
 
 
